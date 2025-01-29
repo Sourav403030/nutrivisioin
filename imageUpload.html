@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vitamin Deficiency Predictor</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #333;
+        }
+        .upload-container {
+            text-align: center;
+            background: #fff;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            width: 100%;
+        }
+        #imagePreview {
+            width: 100%;
+            height: auto;
+            max-height: 300px;
+            object-fit: cover;
+            border: 2px solid #6e8efb;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: none;
+        }
+        .custom-file-upload, #uploadButton {
+            background-color: #6e8efb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.3s ease;
+        }
+        .custom-file-upload:hover, #uploadButton:hover {
+            background-color: #5a75d9;
+        }
+        #output {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #4a4a4a;
+        }
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="upload-container">
+        <h2>Upload an Image for Prediction</h2>
+        <label for="imageUpload" class="custom-file-upload">Choose Image</label>
+        <input type="file" id="imageUpload" accept="image/*">
+        <img id="imagePreview" alt="Image Preview">
+        <button id="uploadButton" onclick="processImage()">Process Image</button>
+        <div id="output">Loading model...</div>
+    </div>
+
+    <script>
+        let model;
+        const classLabels = {
+            0: "Vitamin A Deficiency",
+            1: "Vitamin B Deficiency",
+            2: "Vitamin C Deficiency",
+            3: "Vitamin D Deficiency",
+            4: "Healthy"
+        };
+
+        // Load the trained model
+        async function loadModel() {
+            try {
+                model = await tf.loadLayersModel('path/to/your/model.json');
+                document.getElementById('output').textContent = "Model Loaded Successfully!";
+            } catch (error) {
+                document.getElementById('output').textContent = "Error loading model!";
+                console.error("Error loading model:", error);
+            }
+        }
+
+        // Run loadModel() when the page loads
+        loadModel();
+
+        const imageUpload = document.getElementById('imageUpload');
+        const imagePreview = document.getElementById('imagePreview');
+        const output = document.getElementById('output');
+
+        // Display the uploaded image
+        imageUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Process and predict the image
+        async function processImage() {
+            if (!imageUpload.files.length) {
+                output.textContent = 'Please upload an image first.';
+                return;
+            }
+
+            output.textContent = 'Processing image...';
+
+            const image = document.createElement('img');
+            image.src = imagePreview.src;
+
+            image.onload = async () => {
+                let tensor = tf.browser.fromPixels(image)
+                    .resizeNearestNeighbor([224, 224]) // Match model input size
+                    .toFloat()
+                    .div(tf.scalar(255.0)) // Normalize the image
+                    .expandDims();
+
+                const prediction = await model.predict(tensor).data();
+                const maxIndex = prediction.indexOf(Math.max(...prediction));
+
+                output.textContent = `Prediction: ${classLabels[maxIndex]}`;
+            };
+        }
+    </script>
+</body>
+</html>
